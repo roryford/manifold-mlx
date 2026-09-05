@@ -1,6 +1,7 @@
 import ManifoldInference
 import ManifoldMLX
 @_spi(Testing) import ManifoldMLX
+import StableDiffusion
 import XCTest
 
 /// Unit tests for ``MLXDiffusionBackend``.
@@ -231,6 +232,49 @@ final class MLXDiffusionBackendTests: XCTestCase {
     )
     XCTAssertEqual(params.steps, 7)
     XCTAssertEqual(params.prompt, "a fox")
+  }
+
+  func test_makeParams_bareConfig_usesRequestedOrTurboPresetDefault() {
+    // Released core's bare config still requests its legacy 20 steps. Release
+    // 0.77's bare config defers (nil), so Turbo must use its pinned 2-step
+    // preset default instead.
+    let config = ImageGenerationConfig(width: 512, height: 512)
+    let requestedSteps: Int? = config.steps
+    let params = MLXDiffusionBackend.makeParams(
+      prompt: "p", config: config, preset: .presetSDXLTurbo
+    )
+    if let requestedSteps {
+      XCTAssertEqual(requestedSteps, 20)
+    }
+    XCTAssertEqual(params.steps, requestedSteps ?? 2)
+  }
+
+  func test_makeParams_bareConfig_usesRequestedOrSD21BasePresetDefault() {
+    let config = ImageGenerationConfig(width: 512, height: 512)
+    let requestedSteps: Int? = config.steps
+    let params = MLXDiffusionBackend.makeParams(
+      prompt: "p", config: config, preset: .presetStableDiffusion21Base
+    )
+    if let requestedSteps {
+      XCTAssertEqual(requestedSteps, 20)
+    }
+    XCTAssertEqual(params.steps, requestedSteps ?? 50)
+  }
+
+  func test_makeParams_stepsExplicit_overridesTurboPresetDefault() {
+    let config = ImageGenerationConfig(steps: 7, width: 512, height: 512)
+    let params = MLXDiffusionBackend.makeParams(
+      prompt: "p", config: config, preset: .presetSDXLTurbo
+    )
+    XCTAssertEqual(params.steps, 7)
+  }
+
+  func test_makeParams_stepsExplicit_overridesSD21BasePresetDefault() {
+    let config = ImageGenerationConfig(steps: 7, width: 512, height: 512)
+    let params = MLXDiffusionBackend.makeParams(
+      prompt: "p", config: config, preset: .presetStableDiffusion21Base
+    )
+    XCTAssertEqual(params.steps, 7)
   }
 
   func test_makeParams_guidanceScaleNil_fallsBackToPresetDefault() {
