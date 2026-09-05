@@ -319,9 +319,13 @@ public final class MLXDiffusionBackend: ImageGenerationBackend, @unchecked Senda
     preset: StableDiffusionConfiguration
   ) -> EvaluateParameters {
     let defaults = preset.defaultParameters()
+    // `ImageGenerationConfig.steps` is an Int on released core and Int? on
+    // release 0.77. Normalizing preserves the released-core request (20) and
+    // lets 0.77's nil defer to the loaded preset.
+    let requestedSteps: Int? = config.steps
     return EvaluateParameters(
       cfgWeight: config.guidanceScale ?? defaults.cfgWeight,
-      steps: config.steps,
+      steps: requestedSteps ?? defaults.steps,
       latentSize: [config.height / 8, config.width / 8],
       seed: config.seed ?? defaults.seed,
       prompt: prompt

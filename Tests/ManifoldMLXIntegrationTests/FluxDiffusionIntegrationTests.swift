@@ -3,6 +3,7 @@ import MLX
 import MLXNN
 import ManifoldInference
 import ManifoldMLX
+@_spi(Testing) import ManifoldMLX
 import ManifoldTestSupport
 import XCTest
 
@@ -127,6 +128,38 @@ final class FluxDiffusionIntegrationTests: XCTestCase {
     XCTAssertTrue(
       qHolder.emb is QuantizedEmbedding,
       "An Embedding with a matching .scales tensor must become a QuantizedEmbedding.")
+  }
+
+  /// Cross-checks `FluxDiffusionBackend.flux1SchnellDefaultSteps` against the
+  /// real vendored source of truth it's kept in sync with by hand.
+  ///
+  /// `resolvedSteps(config:)` (the unit-tested nil-resolution) deliberately
+  /// uses a hardcoded literal instead of calling
+  /// `FluxConfiguration.flux1Schnell.defaultParameters()` directly, because
+  /// evaluating that closure constructs a `FluxSwift.EvaluateParameters`,
+  /// whose `init` eagerly computes `sigmas: MLXArray` via
+  /// `MLXArray.linspace(...)` — real Metal work that aborts the whole XCTest
+  /// process under the unit suite's no-GPU contract. This test lives here
+  /// instead, where Metal is guaranteed, so a future edit to
+  /// `FluxConfiguration.flux1Schnell`'s default step count (or to
+  /// `EvaluateParameters.init`'s `numInferenceSteps` default) that forgets to
+  /// update the unit-suite literal is caught.
+  func test_flux1SchnellDefaultSteps_matchesFluxConfigurationDefault() throws {
+    // Metal-bound (constructs EvaluateParameters); needs no model snapshot —
+    // same gating as test_quantizedEmbedding_branch_convertsOnlyWhenScalesPresent
+    // above, for the same reason (CI's macOS runner reports a Metal device
+    // but has no metallib under plain `swift test`).
+    try XCTSkipUnless(
+      ProcessInfo.processInfo.environment["MANIFOLD_DISCOVER_LOCAL_MODELS"] == "1",
+      "Metal-bound; run via scripts/test-mlx-integration.sh")
+    try XCTSkipUnless(HardwareRequirements.isAppleSilicon, "Requires Apple Silicon")
+    try XCTSkipUnless(HardwareRequirements.hasMetalDevice, "Requires Metal GPU")
+
+    XCTAssertEqual(
+      FluxDiffusionBackend.flux1SchnellDefaultSteps,
+      FluxConfiguration.flux1Schnell.defaultParameters().numInferenceSteps,
+      "FluxDiffusionBackend.flux1SchnellDefaultSteps has drifted from FluxConfiguration.flux1Schnell's own default — update the literal alongside it."
+    )
   }
 
   func test_loadModel_realSnapshot_setsIsLoaded() async throws {
@@ -258,12 +291,16 @@ final class FluxDiffusionIntegrationTests: XCTestCase {
     config.outputDirectory = outDir
 
     var sawProgress = false
+    var finalStep = 0
+    var finalTotal = 0
     var producedURL: URL?
     let stream = try backend.generate(prompt: "a red apple on a table", config: config)
     for try await event in stream {
       switch event {
-      case .progress:
+      case .progress(let step, let total):
         sawProgress = true
+        finalStep = step
+        finalTotal = total
       case .completed(let imageURL):
         producedURL = imageURL
       // TODO: assert on intermediate preview frames once the backend emits
@@ -279,6 +316,8 @@ final class FluxDiffusionIntegrationTests: XCTestCase {
     }
 
     XCTAssertTrue(sawProgress, "Expected at least one progress tick")
+    XCTAssertEqual(finalStep, 2, "Expected the final progress step to match explicit config.steps (2)")
+    XCTAssertEqual(finalTotal, 2, "Expected the reported total steps to match explicit config.steps (2)")
     let finalURL = try XCTUnwrap(producedURL, "Expected a completed image URL")
     XCTAssertTrue(
       FileManager.default.fileExists(atPath: finalURL.path),
