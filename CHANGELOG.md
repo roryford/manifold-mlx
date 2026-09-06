@@ -1,5 +1,49 @@
 # Changelog
 
+## [0.6.0](https://github.com/ManifoldKit/manifold-mlx/compare/v0.5.2...v0.6.0) (2026-09-06)
+
+### Highlights
+
+#### Honor each image model's step preset
+
+When ManifoldKit 0.77 leaves `ImageGenerationConfig.steps` unset, the MLX image
+backends now use the loaded model's own preset: 4 steps for FLUX.1 Schnell, 2
+for SDXL Turbo, and 50 for Stable Diffusion 2.1 Base. Explicit step counts pass
+through unchanged, so existing tuned workflows keep their requested value.
+
+```swift
+import ManifoldKit
+
+let presetDriven = ImageGenerationConfig()
+let explicitlyTuned = ImageGenerationConfig(steps: 12)
+```
+
+#### Track ManifoldKit 0.77.0
+
+The package now pins ManifoldKit 0.77.0 and is source-compatible with its
+optional image-step configuration. The full build and serial test suite pass
+against the new core.
+
+
+### ⚠ BREAKING CHANGES
+
+* Resolve omitted image steps from model presets ([#191](https://github.com/ManifoldKit/manifold-mlx/issues/191))
+
+### Bug Fixes
+
+* **deps:** bump ManifoldKit pin to v0.77.0 ([9751334](https://github.com/ManifoldKit/manifold-mlx/commit/9751334a5ff63a704fea1db3f5b2be8f209786ac))
+* Resolve omitted image steps from model presets ([#191](https://github.com/ManifoldKit/manifold-mlx/issues/191)) ([d0368d6](https://github.com/ManifoldKit/manifold-mlx/commit/d0368d6205ad1ba4da5503050093445a1bec2a50))
+
+
+### Dependencies
+
+* Bump ManifoldKit pin to v0.76.1 ([74c4fa8](https://github.com/ManifoldKit/manifold-mlx/commit/74c4fa88091efab298621330dc72ded3eacc20f3))
+
+
+### Miscellaneous Chores
+
+* **release:** correct next version to 0.6.0 ([#201](https://github.com/ManifoldKit/manifold-mlx/issues/201)) ([cb1bce9](https://github.com/ManifoldKit/manifold-mlx/commit/cb1bce909c90f0dfe74cc3e25463bf93dba01bcd))
+
 ## [0.5.2](https://github.com/ManifoldKit/manifold-mlx/compare/v0.5.1...v0.5.2) (2026-08-14)
 
 
