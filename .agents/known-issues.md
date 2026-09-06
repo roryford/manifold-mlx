@@ -6,6 +6,13 @@ something that cost real diagnosis time.
 
 ## CI / release
 
+- **Release Please proposes a patch even though an unreleased breaking commit
+  is present** → an older post-tag commit still carries a `Release-As` footer;
+  Release Please scans commits newest to oldest and uses the first such footer,
+  overriding the normal breaking-change calculation → land a newer correction
+  commit with `Release-As: <intended-version>` and let Release Please regenerate
+  its existing PR. Never edit the generated release PR title or body.
+
 - **Release PR sits `BLOCKED` with "no checks reported", nothing failing** →
   `ci.yml` deliberately skips release-please PRs via `paths-ignore`
   (`CHANGELOG.md`, `.release-please-manifest.json`), but `test / build-and-test`
